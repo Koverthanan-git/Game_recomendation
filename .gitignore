@@ -1,0 +1,77 @@
+# ─────────────────────────────────────────────
+# Secrets & Credentials — NEVER commit these
+# ─────────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.staging
+# .env.example is intentionally committed as a safe template
+
+# ─────────────────────────────────────────────
+# Large model weights — too big for GitHub
+# Use Git LFS or host separately (e.g. HuggingFace Hub)
+# ─────────────────────────────────────────────
+model/product_model.h5
+model/*.h5
+model/*.keras
+model/*.pkl
+*.h5
+*.pkl
+
+# ─────────────────────────────────────────────
+# Large dataset files — download via Kaggle API
+# ─────────────────────────────────────────────
+dataset/fps_benchmark.csv
+dataset/gpus.json
+
+# ─────────────────────────────────────────────
+# Generated output — reproducible via etl_pipeline.py
+# ─────────────────────────────────────────────
+clean_training_data.csv
+
+# ─────────────────────────────────────────────
+# Python cache & bytecode
+# ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# ─────────────────────────────────────────────
+# Virtual environments
+# ─────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+.Python
+
+# ─────────────────────────────────────────────
+# Uploaded images (runtime artifacts)
+# ─────────────────────────────────────────────
+static/uploads/*
+!static/uploads/.gitkeep
+
+# ─────────────────────────────────────────────
+# macOS system files
+# ─────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ─────────────────────────────────────────────
+# IDEs & editors
+# ─────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─────────────────────────────────────────────
+# Logs & temp files
+# ─────────────────────────────────────────────
+*.log
+*.tmp
