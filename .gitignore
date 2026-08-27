@@ -75,3 +75,7 @@ Thumbs.db
 # ─────────────────────────────────────────────
 *.log
 *.tmp
+
+# CatBoost model binary — too large for GitHub (13 MB)
+catboost_fps_model.cbm
+*.cbm
