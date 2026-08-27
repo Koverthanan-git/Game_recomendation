@@ -1,211 +1,121 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 
-/**
- * AutocompleteInput — Country-selector style instant filtering.
- *
- * Receives the full `allNames` list from the parent (pre-loaded once).
- * Filters entirely in-memory as the user types — zero network lag.
- *
- * Props:
- *   id          — unique HTML id for the input
- *   label       — visible label above the input
- *   placeholder — input placeholder text
- *   icon        — emoji/icon for the label
- *   allNames    — string[] — the full list loaded from /api/hardware/all
- *   value       — controlled confirmed value (empty while typing)
- *   onChange    — (confirmedValue: string) => void
- */
 export default function AutocompleteInput({
-  id,
-  label,
-  placeholder,
-  icon,
-  allNames = [],
-  value,
-  onChange,
+  id, label, placeholder, icon, allNames = [], value, onChange,
 }) {
-  const [inputText,  setInputText]  = useState(value || '');
-  const [open,       setOpen]       = useState(false);
-  const [activeIdx,  setActiveIdx]  = useState(-1);
-  const wrapRef    = useRef(null);
-  const listRef    = useRef(null);
-  const inputRef   = useRef(null);
+  const [text,      setText]      = useState(value || '');
+  const [open,      setOpen]      = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const wrapRef  = useRef(null);
+  const listRef  = useRef(null);
+  const inputRef = useRef(null);
 
-  /* ── Instant local filter — runs on every keystroke with no delay ── */
+  /* Instant local filter — starts-with first, then contains */
   const filtered = useMemo(() => {
-    const q = inputText.trim().toLowerCase();
+    const q = text.trim().toLowerCase();
     if (!q) return [];
-    // Match anywhere in the name, sort: starts-with first, then contains
-    const startsWith = [];
-    const contains   = [];
-    for (const name of allNames) {
-      const n = name.toLowerCase();
-      if (n.startsWith(q))     startsWith.push(name);
-      else if (n.includes(q))  contains.push(name);
+    const sw = [], cont = [];
+    for (const n of allNames) {
+      const nl = n.toLowerCase();
+      if (nl.startsWith(q)) sw.push(n);
+      else if (nl.includes(q)) cont.push(n);
     }
-    return [...startsWith, ...contains].slice(0, 12); // max 12 items
-  }, [inputText, allNames]);
+    return [...sw, ...cont].slice(0, 10);
+  }, [text, allNames]);
 
-  /* Show/hide dropdown based on filtered results */
-  useEffect(() => {
-    setOpen(filtered.length > 0);
-    setActiveIdx(-1);
-  }, [filtered]);
+  useEffect(() => { setOpen(filtered.length > 0); setActiveIdx(-1); }, [filtered]);
 
-  /* Scroll active item into view */
   useEffect(() => {
     if (activeIdx >= 0 && listRef.current) {
-      const li = listRef.current.querySelectorAll('li')[activeIdx];
-      li?.scrollIntoView({ block: 'nearest' });
+      listRef.current.querySelectorAll('li')[activeIdx]?.scrollIntoView({ block: 'nearest' });
     }
   }, [activeIdx]);
 
-  /* Close on outside click */
   useEffect(() => {
-    function handler(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  function confirmSelection(name) {
-    setInputText(name);
-    onChange(name);
-    setOpen(false);
-    setActiveIdx(-1);
+  function confirm(name) {
+    setText(name); onChange(name); setOpen(false); setActiveIdx(-1);
   }
 
   function handleKeyDown(e) {
     if (!open && e.key !== 'ArrowDown') return;
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setOpen(true);
-        setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setActiveIdx((i) => Math.max(i - 1, 0));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (activeIdx >= 0) confirmSelection(filtered[activeIdx]);
-        break;
-      case 'Escape':
-        setOpen(false);
-        break;
-      case 'Tab':
-        // Accept the top suggestion on Tab
-        if (filtered.length > 0) {
-          e.preventDefault();
-          confirmSelection(filtered[0]);
-        }
-        break;
-    }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setOpen(true); setActiveIdx(i => Math.min(i + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter')     { e.preventDefault(); if (activeIdx >= 0) confirm(filtered[activeIdx]); }
+    else if (e.key === 'Tab' && filtered.length) { e.preventDefault(); confirm(filtered[0]); }
+    else if (e.key === 'Escape')    setOpen(false);
   }
 
-  /* Highlight the matched part of the text in each suggestion */
+  /* Highlight matched substring */
   function highlight(name) {
-    const q = inputText.trim();
+    const q = text.trim();
     if (!q) return name;
     const idx = name.toLowerCase().indexOf(q.toLowerCase());
     if (idx < 0) return name;
-    return (
-      <>
-        {name.slice(0, idx)}
-        <mark className="ac-highlight">{name.slice(idx, idx + q.length)}</mark>
-        {name.slice(idx + q.length)}
-      </>
-    );
+    return <>{name.slice(0, idx)}<span className="ac-match">{name.slice(idx, idx + q.length)}</span>{name.slice(idx + q.length)}</>;
   }
 
-  const isConfirmed = value && value === inputText;
+  const confirmed = value && value.toLowerCase() === text.toLowerCase();
 
   return (
-    <div className="ac-wrap" ref={wrapRef}>
-      <label className="ac-label" htmlFor={id}>
-        <span className="ac-icon">{icon}</span>
-        {label}
-        {isConfirmed && <span className="ac-confirmed">✓</span>}
+    <div className="form-field" ref={wrapRef}>
+      <label className="field-label" htmlFor={id}>
+        <span className="field-icon">{icon}</span>{label}
+        {confirmed && <span style={{ marginLeft: 'auto', color: 'var(--green)', fontSize: '.7rem' }}>✓ set</span>}
       </label>
 
-      <div className={`ac-box ${open ? 'ac-box--open' : ''} ${isConfirmed ? 'ac-box--confirmed' : ''}`}>
+      <div className="field-input-wrap" style={{ position: 'relative' }}>
         <input
           id={id}
           ref={inputRef}
-          className="ac-input"
+          className={`field-input ${confirmed ? 'field-input--confirmed' : ''}`}
           type="text"
           autoComplete="off"
           spellCheck={false}
           placeholder={placeholder}
-          value={inputText}
-          onChange={(e) => {
-            setInputText(e.target.value);
-            onChange(''); // clear confirmed value while user is still typing
-          }}
-          onFocus={() => { if (filtered.length > 0) setOpen(true); }}
+          value={text}
+          onChange={(e) => { setText(e.target.value); onChange(''); }}
+          onFocus={() => { if (filtered.length) setOpen(true); }}
           onKeyDown={handleKeyDown}
           aria-autocomplete="list"
           aria-expanded={open}
           aria-controls={`${id}-list`}
-          aria-activedescendant={activeIdx >= 0 ? `${id}-opt-${activeIdx}` : undefined}
         />
-
-        {/* Clear button */}
-        {inputText && (
+        {text && (
           <button
             type="button"
-            className="ac-clear"
-            aria-label="Clear"
-            onClick={() => {
-              setInputText('');
-              onChange('');
-              setOpen(false);
-              inputRef.current?.focus();
-            }}
-          >
-            ×
-          </button>
+            className="field-clear-btn"
+            onClick={() => { setText(''); onChange(''); setOpen(false); inputRef.current?.focus(); }}
+          >×</button>
+        )}
+
+        {open && (
+          <ul id={`${id}-list`} ref={listRef} role="listbox" className="ac-dropdown">
+            {filtered.map((name, i) => (
+              <li
+                key={name}
+                role="option"
+                aria-selected={i === activeIdx}
+                className={`ac-item ${i === activeIdx ? 'ac-item--active' : ''}`}
+                onMouseDown={(e) => { e.preventDefault(); confirm(name); }}
+                onMouseEnter={() => setActiveIdx(i)}
+              >
+                {highlight(name)}
+              </li>
+            ))}
+            <li className="ac-footer-hint" aria-hidden>
+              {filtered.length} match{filtered.length !== 1 ? 'es' : ''} · ↑↓ · Enter/Tab
+            </li>
+          </ul>
         )}
       </div>
 
-      {/* Dropdown list */}
-      {open && (
-        <ul
-          id={`${id}-list`}
-          ref={listRef}
-          role="listbox"
-          className="ac-dropdown"
-          aria-label={label}
-        >
-          {filtered.map((name, i) => (
-            <li
-              key={name}
-              id={`${id}-opt-${i}`}
-              role="option"
-              aria-selected={i === activeIdx}
-              className={`ac-item ${i === activeIdx ? 'ac-item--active' : ''}`}
-              onMouseDown={(e) => {
-                e.preventDefault(); // prevent blur before click registers
-                confirmSelection(name);
-              }}
-              onMouseEnter={() => setActiveIdx(i)}
-            >
-              <span className="ac-item-name">{highlight(name)}</span>
-            </li>
-          ))}
-
-          {/* Footer hint */}
-          <li className="ac-footer" aria-hidden>
-            {filtered.length} result{filtered.length !== 1 ? 's' : ''} — ↑↓ navigate · Enter/Tab to select
-          </li>
-        </ul>
-      )}
-
-      {/* No results hint */}
-      {inputText.length >= 2 && !open && !isConfirmed && allNames.length > 0 && (
-        <p className="ac-no-results">No matches for &ldquo;{inputText}&rdquo;</p>
+      {text.length >= 2 && !open && !confirmed && allNames.length > 0 && (
+        <p className="ac-no-results">No match for "{text}"</p>
       )}
     </div>
   );
